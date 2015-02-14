@@ -22,7 +22,7 @@
                 "children": [
                     {
                         "id": "597d534e-c16f-4dbb-9be9-0ee106149225",
-                        "name": "Hack on org-web"
+                        "name": "Hack on org-serve"
                     }
                 ]
             },
@@ -43,7 +43,7 @@
   #+begin_src json
     {
         "id": "8c248140-2e8b-4bb9-bcfd-6e771319c942",
-        "command": "create"
+        "command": "create",
         "data": [
             {
                 "id": "b54dcd60-b623-44b8-827a-9ee813eaeba6",
