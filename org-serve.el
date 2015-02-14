@@ -40,8 +40,27 @@
 (defun org-serve-handle-open (websocket)
   (message "[os] Open connection [%s]" websocket))
 
+(defun org-serve-error-unknown-command (in-response-to command)
+  (json-encode `(:id ,(uuidgen-4) :in-response-to ,in-response-to :error ,(format "Unknown command: %s" command))))
+
+(defun org-serve-error-invalid-message (payload)
+  (json-encode `(:id ,(uuidgen-4) :error ,(format "Invalid message: %s" payload))))
+
+(defun org-serve-handle-command (payload)
+  (let ((command (cdr (assoc 'command payload)))
+	(id (cdr (assoc 'id payload))))
+    (cond ((string-equal "list" command)
+	   (org-serve-list id))
+	  (t
+	   (org-serve-error-unknown-command id command)))))
+
 (defun org-serve-handle-message (websocket frame)
-  (let ((payload (websocket-frame-payload frame)))
+  (let* ((payload (condition-case condition
+		      (json-read-from-string (websocket-frame-payload frame))
+		    ('json-readtable-error nil))))
     (message "[os] Received message [%s]" payload)
-    (websocket-send-text websocket (org-serve-list "234234"))))
+    (websocket-send-text websocket (if payload
+				       (org-serve-handle-command payload)
+				     (org-serve-error-invalid-message payload)))))
+
 
