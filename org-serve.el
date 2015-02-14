@@ -47,22 +47,35 @@
 	    (insert (concat "#+PROPERTY: ID " new-id "\n")))
 	  new-id)))))
 
-(defun org-serve-ensure-entry-id ()
-  (let ((entry-id (org-entry-get (point) "ID" nil)))
-    (if entry-id entry-id
-      (let ((new-id (uuidgen-1)))
-	(org-set-property "ID" new-id)
-	new-id))))
+(defun org-serve-ensure-entry-id (headline)
+  (save-excursion
+    (goto-char (org-element-property :begin headline))
+    (let ((entry-id (org-entry-get (point) "ID" nil)))
+      (if entry-id entry-id
+	(let ((new-id (uuidgen-1)))
+	  (org-set-property "ID" new-id)
+	  new-id)))))
 
-(defun org-serve-list-entry ()
-  (let ((entry-id (org-serve-ensure-entry-id))
-	(name (org-element-property :raw-value (org-element-at-point))))
+(defun org-serve-list-entry (headline)
+  (let ((entry-id (org-serve-ensure-entry-id headline))
+	(name (org-element-property :raw-value headline))
+	(children (mapcar 'org-serve-list-entry
+			  (remove-if-not 'identity
+					 (mapcar (lambda (el) (when (eq 'headline (car el)) el))
+						 (nthcdr 2 headline))))))
     `((:id . ,entry-id)
-      (:name . ,name))))
+      (:name . ,name)
+      (:children . ,children))))
 
 (defun org-serve-list-file-entries (file)
   (with-current-buffer (find-file-noselect (org-serve-full-file-name file))
-    (org-map-entries 'org-serve-list-entry)))
+    (org-element-map
+	(org-element-parse-buffer)
+	'headline
+      'org-serve-list-entry
+      nil
+      nil
+      'headline)))
 
 (defun org-serve-list-file (file)
   (let ((file-id (org-serve-ensure-file-id file))
