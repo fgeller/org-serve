@@ -1,0 +1,69 @@
+* Interface
+
+  Command:
+
+  #+begin_src json
+    {
+        "id": "06e25269-13f7-483e-a88d-02746ba9e950",
+        "command": "list"
+    }
+  #+end_src
+
+  Response sample:
+
+  #+begin_src json
+    {
+        "id": "3192f885-2c45-4f7f-b0ca-7c914fcfefda",
+        "in-response-to": "06e25269-13f7-483e-a88d-02746ba9e950",
+        "data": [
+            {
+                "id": "3d86371e-12d7-40a1-8729-29bdbc00d9e4",
+                "name": "Tasks",
+                "children": [
+                    {
+                        "id": "597d534e-c16f-4dbb-9be9-0ee106149225",
+                        "name": "Hack on org-web"
+                    }
+                ]
+            },
+            {
+                "id": "4e754dae-1749-4813-9bad-25fc3c8509f2",
+                "name": "Shopping"
+            },
+            {
+                "id": "f2361112-c195-4730-ba25-d88dc716f51c",
+                "name": "Bookmarks"
+            }
+        ]
+    }
+  #+end_src
+
+  Command:
+
+  #+begin_src json
+    {
+        "id": "8c248140-2e8b-4bb9-bcfd-6e771319c942",
+        "command": "create"
+        "data": [
+            {
+                "id": "b54dcd60-b623-44b8-827a-9ee813eaeba6",
+                "name": "New Tasks"
+            }
+        ]
+    }
+  #+end_src
+
+  Response sample:
+
+  #+begin_src json
+    {
+        "id": "f8eeb7c2-da4a-45e8-be2f-cdd08e67f07a",
+        "in-response-to": "8c248140-2e8b-4bb9-bcfd-6e771319c942",
+        "data": [
+            {
+                "id": "b54dcd60-b623-44b8-827a-9ee813eaeba6",
+                "name": "New Tasks"
+            }
+        ]
+    }
+  #+end_src
