@@ -60,9 +60,8 @@
   (let ((entry-id (org-serve-ensure-entry-id headline))
 	(name (org-element-property :raw-value headline))
 	(children (mapcar 'org-serve-list-entry
-			  (remove-if-not 'identity
-					 (mapcar (lambda (el) (when (eq 'headline (car el)) el))
-						 (nthcdr 2 headline))))))
+			  (remove-if-not (lambda (el) (eq 'headline (car el)))
+					 (org-element-contents headline)))))
     `((:id . ,entry-id)
       (:name . ,name)
       (:children . ,children))))
