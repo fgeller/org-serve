@@ -16,6 +16,9 @@
 (defun org-serve-is-org-file (filename)
   (string-match (concat "^[^.].*" (regexp-quote org-serve-org-suffix) "$") filename))
 
+(defun org-serve-generate-uuid ()
+  (uuidgen-1))
+
 (defun org-serve-find-top-level-files ()
   (remove-if-not 'org-serve-is-org-file
 		 (directory-files org-serve-data-dir)))
@@ -41,7 +44,7 @@
 		      (when (re-search-forward "#\\+PROPERTY:[[:space:]]+ID[[:space:]]+\\(.\\{8\\}-.\\{4\\}-.\\{4\\}-.\\{4\\}-.\\{12\\}\\)" (point-max) t)
 			(buffer-substring-no-properties (- (point) 36) (point))))))
       (if file-id file-id
-	(let ((new-id (uuidgen-1)))
+	(let ((new-id (org-serve-generate-uuid)))
 	  (with-current-buffer file
 	    (goto-char (point-min))
 	    (insert (concat "#+PROPERTY: ID " new-id "\n")))
@@ -52,7 +55,7 @@
     (goto-char (org-element-property :begin headline))
     (let ((entry-id (org-entry-get (point) "ID" nil)))
       (if entry-id entry-id
-	(let ((new-id (uuidgen-1)))
+	(let ((new-id (org-serve-generate-uuid)))
 	  (org-set-property "ID" new-id)
 	  new-id)))))
 
@@ -87,7 +90,7 @@
 ;; (org-serve-list-file "sample.org")
 
 (defun org-serve-list (in-response-to)
-  (let* ((message-id (uuidgen-4))
+  (let* ((message-id (org-serve-generate-uuid))
 	 (files (org-serve-find-top-level-files))
 	 (data (mapcar 'org-serve-list-file files)))
     (json-encode
@@ -99,10 +102,10 @@
   (message "[os] Open connection [%s]" websocket))
 
 (defun org-serve-error-unknown-command (in-response-to command)
-  (json-encode `(:id ,(uuidgen-4) :in-response-to ,in-response-to :error ,(format "Unknown command: %s" command))))
+  (json-encode `(:id ,(org-serve-generate-uuid) :in-response-to ,in-response-to :error ,(format "Unknown command: %s" command))))
 
 (defun org-serve-error-invalid-message (payload)
-  (json-encode `(:id ,(uuidgen-4) :error ,(format "Invalid message: %s" payload))))
+  (json-encode `(:id ,(org-serve-generate-uuid) :error ,(format "Invalid message: %s" payload))))
 
 (defun org-serve-handle-command (payload)
   (let ((command (cdr (assoc 'command payload)))
