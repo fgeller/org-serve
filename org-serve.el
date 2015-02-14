@@ -24,12 +24,12 @@
   (mapcar (lambda (filename) (substring filename 0 (- (length filename) (length org-serve-org-suffix))))
 	  (org-serve-find-top-level-files)))
 
-(defun org-full-file-name (file)
+(defun org-serve-full-file-name (file)
   (expand-file-name (concat org-serve-data-dir "/" file)))
 
 (defun org-serve-ensure-file-id (filename)
   (save-excursion
-    (let* ((file (find-file-noselect (org-full-file-name filename)))
+    (let* ((file (find-file-noselect (org-serve-full-file-name filename)))
 	   (contents (with-current-buffer file (buffer-substring-no-properties (point-min) (point-max))))
 	   (file-id (with-temp-buffer
 		      (insert contents)
@@ -61,7 +61,7 @@
       (:name . ,name))))
 
 (defun org-serve-list-file-entries (file)
-  (with-current-buffer (find-file-noselect (org-full-file-name file))
+  (with-current-buffer (find-file-noselect (org-serve-full-file-name file))
     (org-map-entries 'org-serve-list-entry)))
 
 (defun org-serve-list-file (file)
