@@ -24,9 +24,12 @@
   (mapcar (lambda (filename) (substring filename 0 (- (length filename) (length org-serve-org-suffix))))
 	  (org-serve-find-top-level-files)))
 
+(defun org-full-file-name (file)
+  (expand-file-name (concat org-serve-data-dir "/" file)))
+
 (defun org-serve-ensure-file-id (filename)
   (save-excursion
-    (let* ((file (find-file-noselect (expand-file-name (concat org-serve-data-dir "/" filename))))
+    (let* ((file (find-file-noselect (org-full-file-name filename)))
 	   (contents (with-current-buffer file (buffer-substring-no-properties (point-min) (point-max))))
 	   (file-id (with-temp-buffer
 		      (insert contents)
@@ -44,17 +47,41 @@
 	    (insert (concat "#+PROPERTY: ID " new-id "\n")))
 	  new-id)))))
 
+(defun org-serve-ensure-entry-id ()
+  (let ((entry-id (org-entry-get (point) "ID" nil)))
+    (if entry-id entry-id
+      (let ((new-id (uuidgen-1)))
+	(org-set-property "ID" new-id)
+	new-id))))
+
+(defun org-serve-list-entry ()
+  (let ((entry-id (org-serve-ensure-entry-id))
+	(name (org-element-property :raw-value (org-element-at-point))))
+    `((:id . ,entry-id)
+      (:name . ,name))))
+
+(defun org-serve-list-file-entries (file)
+  (with-current-buffer (find-file-noselect (org-full-file-name file))
+    (org-map-entries 'org-serve-list-entry)))
+
 (defun org-serve-list-file (file)
   (let ((file-id (org-serve-ensure-file-id file))
-	(name (substring file 0 (- (length file) (length org-serve-org-suffix)))))
-    `(:id ,file-id :name ,name)))
+	(name (substring file 0 (- (length file) (length org-serve-org-suffix))))
+	(children (org-serve-list-file-entries file)))
+    `((:id . ,file-id)
+      (:name . ,name)
+      (:children . ,children))))
+
+;; (org-serve-list-file "sample.org")
 
 (defun org-serve-list (in-response-to)
   (let* ((message-id (uuidgen-4))
 	 (files (org-serve-find-top-level-files))
 	 (data (mapcar 'org-serve-list-file files)))
     (json-encode
-     `(:id ,message-id :in-response-to ,in-response-to :data ,data))))
+     `((:id . ,message-id)
+       (:in-response-to . ,in-response-to)
+       (:data . ,data)))))
 
 (defun org-serve-handle-open (websocket)
   (message "[os] Open connection [%s]" websocket))
@@ -79,7 +106,9 @@
 		    ('json-readtable-error nil))))
     (message "[os] Received message [%s]" payload)
     (websocket-send-text websocket (if payload
-				       (org-serve-handle-command payload)
+				       (let ((response (org-serve-handle-command payload)))
+					 (message "[os] sending response [%s]" response)
+					 response)
 				     (org-serve-error-invalid-message payload)))))
 
 (provide 'org-serve)
