@@ -44,14 +44,15 @@
 	    (insert (concat "#+PROPERTY: ID " new-id "\n")))
 	  new-id)))))
 
+(defun org-serve-list-file (file)
+  (let ((file-id (org-serve-ensure-file-id file))
+	(name (substring file 0 (- (length file) (length org-serve-org-suffix)))))
+    `(:id ,file-id :name ,name)))
+
 (defun org-serve-list (in-response-to)
   (let* ((message-id (uuidgen-4))
 	 (files (org-serve-find-top-level-files))
-	 (data (mapcar (lambda (file)
-			 (let ((file-id (org-serve-ensure-file-id file))
-			       (name (substring file 0 (- (length file) (length org-serve-org-suffix)))))
-			   `(:id ,file-id :name ,name)))
-		       files)))
+	 (data (mapcar 'org-serve-list-file files)))
     (json-encode
      `(:id ,message-id :in-response-to ,in-response-to :data ,data))))
 
