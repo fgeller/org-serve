@@ -81,3 +81,5 @@
 				       (org-serve-handle-command payload)
 				     (org-serve-error-invalid-message payload)))))
 
+(provide 'org-serve)
+
