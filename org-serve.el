@@ -3,6 +3,7 @@
 
 (defconst org-serve-port 3034)
 (defconst org-serve-data-dir nil)
+(defconst org-serve-org-suffix ".org")
 (defconst org-serve-server
       (websocket-server org-serve-port
 			:on-open 'org-serve-handle-open
@@ -12,14 +13,8 @@
 				    (message "[os] Error: [%s] type [%s] on [%s]" error type websocket))
 			))
 
-(delete-process org-serve-server)
-(setq org-serve-data-dir (expand-file-name "/tmp/data"))
-(setq uuidgen-suppress-network-info-warnings t)
-
-(defconst org-serve-org-suffix ".org")
-
 (defun org-serve-is-org-file (filename)
-  (string-match (concat ".+" (regexp-quote org-serve-org-suffix) "$") filename))
+  (string-match (concat "^[^.].*" (regexp-quote org-serve-org-suffix) "$") filename))
 
 (defun org-serve-find-top-level-files ()
   (remove-if-not 'org-serve-is-org-file
@@ -29,13 +24,36 @@
   (mapcar (lambda (filename) (substring filename 0 (- (length filename) (length org-serve-org-suffix))))
 	  (org-serve-find-top-level-files)))
 
+(defun org-serve-ensure-file-id (filename)
+  (save-excursion
+    (let* ((file (find-file-noselect (expand-file-name (concat org-serve-data-dir "/" filename))))
+	   (contents (with-current-buffer file (buffer-substring-no-properties (point-min) (point-max))))
+	   (file-id (with-temp-buffer
+		      (insert contents)
+		      (goto-char (point-min))
+		      (re-search-forward "^\*" (point-max) t)
+		      (beginning-of-line)
+		      (delete-region (point) (point-max))
+		      (goto-char (point-min))
+		      (when (re-search-forward "#\\+PROPERTY:[[:space:]]+ID[[:space:]]+\\(.\\{8\\}-.\\{4\\}-.\\{4\\}-.\\{4\\}-.\\{12\\}\\)" (point-max) t)
+			(buffer-substring-no-properties (- (point) 36) (point))))))
+      (if file-id file-id
+	(let ((new-id (uuidgen-1)))
+	  (with-current-buffer file
+	    (goto-char (point-min))
+	    (insert (concat "#+PROPERTY: ID " new-id "\n")))
+	  new-id)))))
 
 (defun org-serve-list (in-response-to)
-  (let ((id (uuidgen-4))
-	(data (mapcar (lambda (entry) `(:id ,(uuidgen-4) :name ,entry))
-		      (org-serve-find-top-level-entries))))
+  (let* ((message-id (uuidgen-4))
+	 (files (org-serve-find-top-level-files))
+	 (data (mapcar (lambda (file)
+			 (let ((file-id (org-serve-ensure-file-id file))
+			       (name (substring file 0 (- (length file) (length org-serve-org-suffix)))))
+			   `(:id ,file-id :name ,name)))
+		       files)))
     (json-encode
-     `(:id ,id :in-response-to ,in-response-to :data ,data))))
+     `(:id ,message-id :in-response-to ,in-response-to :data ,data))))
 
 (defun org-serve-handle-open (websocket)
   (message "[os] Open connection [%s]" websocket))
@@ -62,5 +80,4 @@
     (websocket-send-text websocket (if payload
 				       (org-serve-handle-command payload)
 				     (org-serve-error-invalid-message payload)))))
-
 
