@@ -138,13 +138,13 @@
          (found-file (cdr (assoc id files-with-ids))))
     found-file))
 
-(defun org-serve-vector-to-list (vector)
-  (append vector nil))
+(defun org-serve-vector-to-list (vector) (append vector nil))
 
-(defun org-serve-post-diff-entries (old new)
+(defun org-serve-post-diff-entries (old new child-of)
   (let ((rest-old old)
         (rest-new new)
-        result)
+        result
+        insert-after)
     (while (or rest-old rest-new)
       (let* ((old-current (car rest-old))
              (old-id (cdr (assoc 'id old-current)))
@@ -152,26 +152,44 @@
              (new-id (cdr (assoc 'id new-current))))
         (cond ((string-equal old-id new-id)
                (message "Found equal ids, nothing to do: [%s]" old-id)
-               (setq result (cons (org-serve-post-diff-entries (org-serve-vector-to-list (cdr (assoc 'children old-current)))
-                                                        (org-serve-vector-to-list (cdr (assoc 'children new-current))))
-                                  result))
+               (setq insert-after old-id)
+               (setq result (append (org-serve-post-diff-entries
+                                     (org-serve-vector-to-list (cdr (assoc 'children old-current)))
+                                     (org-serve-vector-to-list (cdr (assoc 'children new-current)))
+                                     old-id)
+                                    result))
                (setq rest-old (cdr rest-old)
                      rest-new (cdr rest-new)))
               ((not new-current)
                (message "No more entries on the new side. Maybe we should delete stuff in the future")
                (setq rest-old nil))
               (t
-               (let ((insert-after (or (progn
-                                         (message "found old-id [%s]" old-id)
-                                         old-id)
-                                       (progn
-                                         (message "found last [%s] in old [%s]" (last old) old)
-                                         (cdr (assoc 'id (car (last old))))))))
-                 (message "Found non-equal ids, assuming that we should add new-id [%s] after old-id [%s] new-current [%s]" new-id insert-after new-current)
-                 (setq result (cons `((add . ,new-id) (after . ,insert-after)) result)))
-               (message "Setting result to [%s]" result)
-               (setq rest-old rest-old
-                     rest-new (cdr rest-new))))))
+               (message "Found non-equal ids new-id [%s] old-id [%s]" new-id old-id)
+               (cond
+                ;; still at the beginning
+                ((= (length old) (length rest-old))
+                 (setq result (cons `((add . ,new-id)
+                                      (after . ,nil)
+                                      (child-of . ,child-of)) result))
+                 (setq rest-old rest-old
+                       rest-new (cdr rest-new)))
+
+                ;; at the end of old ids
+                ((not old-id)
+                 (setq result (cons `((add . ,new-id)
+                                      (after . ,(cdr (assoc 'id (car (last old)))))
+                                      (child-of . ,child-of)) result))
+                 (setq rest-old rest-old
+                       rest-new (cdr rest-new)))
+
+                ;; default to last proper id
+                (t
+                 (setq result (cons `((add . ,new-id)
+                                      (after . ,insert-after)
+                                      (child-of . ,child-of)) result))
+                 (setq rest-old rest-old
+                       rest-new (cdr rest-new)))
+               )))))
     (remove-if-not 'identity result)))
 
 
@@ -179,7 +197,7 @@
   ;; find existing structure, and add where appropriate
   ;; no op if all ids exist
   (let* ((stored-data (org-serve-data)))
-    (message "diff-result: %s" (org-serve-post-diff-entries stored-data post-data))
+    (message "diff-result: %s" (org-serve-post-diff-entries stored-data post-data nil))
     "helo"))
 
 (defun org-serve-handle-message (websocket frame)
