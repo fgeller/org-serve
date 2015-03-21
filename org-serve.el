@@ -125,8 +125,8 @@
            (org-serve-list id))
           ((string-equal "post" command)
            (org-serve-post data))
-          ;; delete
-          ;; sync
+          ;; TODO: delete
+          ;; TODO: sync
           (t
            (org-serve-error-unknown-command id command)))))
 
@@ -138,9 +138,13 @@
          (found-file (cdr (assoc id files-with-ids))))
     found-file))
 
+(defun org-serve-vector-to-list (vector)
+  (append vector nil))
+
 (defun org-serve-post-diff-entries (old new)
   (let ((rest-old old)
-        (rest-new new))
+        (rest-new new)
+        result)
     (while (or rest-old rest-new)
       (let* ((old-current (car rest-old))
              (old-id (cdr (assoc 'id old-current)))
@@ -148,26 +152,35 @@
              (new-id (cdr (assoc 'id new-current))))
         (cond ((string-equal old-id new-id)
                (message "Found equal ids, nothing to do: [%s]" old-id)
-               (org-serve-diff-entries (append (cdr (assoc 'children old-current)) nil)
-                                       (append (cdr (assoc 'children new-current)) nil))
+               (setq result (cons (org-serve-post-diff-entries (org-serve-vector-to-list (cdr (assoc 'children old-current)))
+                                                        (org-serve-vector-to-list (cdr (assoc 'children new-current))))
+                                  result))
                (setq rest-old (cdr rest-old)
                      rest-new (cdr rest-new)))
+              ((not new-current)
+               (message "No more entries on the new side. Maybe we should delete stuff in the future")
+               (setq rest-old nil))
               (t
-               (message "Found non-equal ids, assuming that we should add new-id [%s] after old-id [%s]" new-id old-id)
+               (let ((insert-after (or (progn
+                                         (message "found old-id [%s]" old-id)
+                                         old-id)
+                                       (progn
+                                         (message "found last [%s] in old [%s]" (last old) old)
+                                         (cdr (assoc 'id (car (last old))))))))
+                 (message "Found non-equal ids, assuming that we should add new-id [%s] after old-id [%s] new-current [%s]" new-id insert-after new-current)
+                 (setq result (cons `((add . ,new-id) (after . ,insert-after)) result)))
+               (message "Setting result to [%s]" result)
                (setq rest-old rest-old
-                     rest-new (cdr rest-new))))
-        ))))
+                     rest-new (cdr rest-new))))))
+    (remove-if-not 'identity result)))
+
 
 (defun org-serve-post (post-data)
   ;; find existing structure, and add where appropriate
   ;; no op if all ids exist
   (let* ((stored-data (org-serve-data)))
-    (message "post-data [%s]" post-data)
-    (message "stored-data [%s]" stored-data)
-    (let ((stored-rest stored-data)
-          (post-rest post-data))
-      (org-serve-post-diff-entries stored-data post-data)
-      "helo")))
+    (message "diff-result: %s" (org-serve-post-diff-entries stored-data post-data))
+    "helo"))
 
 (defun org-serve-handle-message (websocket frame)
   (let* ((payload (condition-case condition
