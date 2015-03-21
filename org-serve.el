@@ -8,10 +8,9 @@
       (websocket-server org-serve-port
 			:on-open 'org-serve-handle-open
 			:on-message 'org-serve-handle-message
-			:on-close (lambda (&rest args) (message "Closed connection."))
+			:on-close (lambda (&rest args) (message "[os] Closed connection."))
 			:on-error (lambda (websocket type error)
-				    (message "[os] Error: [%s] type [%s] on [%s]" error type websocket))
-			))
+                  (message "[os] Error: [%s] type [%s] on [%s]." error type websocket))))
 
 (defun org-serve-is-org-file (filename)
   (string-match (concat "^[^.].*" (regexp-quote org-serve-org-suffix) "$") filename))
