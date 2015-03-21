@@ -12,14 +12,14 @@
 			:on-error (lambda (websocket type error)
                   (message "[os] Error: [%s] type [%s] on [%s]." error type websocket))))
 
-(defun org-serve-is-org-file (filename)
+(defun org-serve-org-file-p (filename)
   (string-match (concat "^[^.].*" (regexp-quote org-serve-org-suffix) "$") filename))
 
 (defun org-serve-generate-uuid ()
   (uuidgen-1))
 
 (defun org-serve-find-top-level-files ()
-  (remove-if-not 'org-serve-is-org-file
+  (remove-if-not 'org-serve-org-file-p
 		 (directory-files org-serve-data-dir)))
 
 (defun org-serve-find-top-level-entries ()
