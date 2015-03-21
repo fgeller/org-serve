@@ -140,6 +140,7 @@
 
 (defun org-serve-vector-to-list (vector) (append vector nil))
 
+;; TODO: does not support top level (file) additions at the moment
 (defun org-serve-post-diff-entries (old new child-of)
   (let ((rest-old old)
         (rest-new new)
@@ -196,7 +197,8 @@
 (defun org-serve-post (post-data)
   ;; find existing structure, and add where appropriate
   ;; no op if all ids exist
-  (let* ((stored-data (org-serve-data)))
+  (let* ((stored-data (org-serve-data))
+         (diffs (org-serve-post-diff-entries stored-data post-data nil)))
     (message "diff-result: %s" (org-serve-post-diff-entries stored-data post-data nil))
     "helo"))
 
