@@ -94,3 +94,32 @@
                       (child-of . "6511b2f4-d008-11e4-8406-14109ff1106e")))
                    (org-serve-post-diff-entries (org-serve-data) post-data nil)))))
 
+(defmacro with-org-serve-test-defaults (body)
+  `(let ((org-serve-data-dir (expand-file-name "./orgs")))
+     (org-serve-test-default-file-setup)
+     ,body))
+
+(with-org-serve-test-defaults
+ (org-serve
+
+(ert-deftest org-serve:org-serve-apply-changes-single-insert ()
+  (with-org-serve-test-defaults
+   (let* ((before-data (org-serve-data))
+          (changes '(((add . "9dacf69a-8711-4026-9fe3-c0d56587fbc3")
+                      (after . "15e8df32-d007-11e4-830d-14109ff1106e")
+                      (child-of . "6511b2f4-d008-11e4-8406-14109ff1106e"))))
+          (post-data '(((id . "6511b2f4-d008-11e4-8406-14109ff1106e")
+                        (children . (((id . "65131798-d008-11e4-98c2-14109ff1106e"))
+                                     ((id . "15e8df32-d007-11e4-830d-14109ff1106e"))
+                                     ((id . "9dacf69a-8711-4026-9fe3-c0d56587fbc3")
+                                      (name . "blubb"))))) ;; new one
+                       ((id . "6515c880-d008-11e4-889f-14109ff1106e")
+                        (children . (((id . "6516c262-d008-11e4-80b3-14109ff1106e"))
+                                     ((id . "9fecb9b0-d007-11e4-9af5-14109ff1106e")))))))
+          (a (org-serve-apply-changes changes post-data))
+          ;; (b (progn (org-serve-goto "15e8df32-d007-11e4-830d-14109ff1106e")
+          ;;           (insert "MAGIC")))
+          ;; (b (progn (org-serve-goto "6511b2f4-d008-11e4-8406-14109ff1106e")
+          ;;           (insert "MAGIC")))
+          (after-data (org-serve-data)))
+     (message "should check after data."))))

@@ -1,6 +1,12 @@
 ;; commands:
 ;; - list
-;; - post (need to include entire structure, ids only)
+;; - post
+;;   + need to include entire structure, ids mostly for existing entries.
+;;   + should become a sync operation (additions, modifications, deletions)
+
+;; Notes:
+;;
+;; clients are expected to be able to generate uuid to identify new entries.
 
 (require 'websocket)
 (require 'uuidgen)
@@ -193,14 +199,69 @@
                )))))
     (remove-if-not 'identity result)))
 
+(defun org-serve-goto (target-id)
+  (interactive)
+  (let* ((files (org-serve-find-top-level-files)))
+    (mapcar (lambda (file)
+              (let ((file-id (org-serve-ensure-file-id file)))
+                (cond ((string-equal target-id file-id)
+                       (find-file (org-serve-full-file-name file)))
+                      (t ;; look into the file
+                       (let ((results (remove-if-not 'identity
+                                                     (with-current-buffer (find-file-noselect (org-serve-full-file-name file))
+                                                       (org-element-map
+                                                           (org-element-parse-buffer)
+                                                           'headline
+                                                         (lambda (headline)
+                                                           (let ((headline-id (org-serve-ensure-entry-id headline)))
+                                                             (message "found headline id [%s]" headline-id)
+                                                             (when (string-equal headline-id target-id)
+                                                               (org-element-property :begin headline)))))))))
+                         (message "found results: [%s]" results)
+                         (when results
+                           (find-file (org-serve-full-file-name file))
+                           (goto-char (car results)))
+                           nil)))))
+            files)))
+
+;; org-insert-heading-respect-content
+
+(defun org-serve-find-data-for-id (id data)
+  (when data
+    (or (cl-find-if (lambda (d)  (string-equal id (cdr (assoc 'id d)))) data)
+        (org-serve-find-data-for-id id
+                 (apply 'append (mapcar (lambda (d) (cdr (assoc 'children d))) data))))))
+
+(defun org-serve-apply-changes (changes post-data)
+  (message "got change instructions [%s]" changes)
+  (mapcar (lambda (change)
+            (cond ((equal 'add (car (car change)))
+                   (message "found addition.")
+                   (let* ((new-id (cdr (assoc 'add change)))
+                          (after-id (cdr (assoc 'after change)))
+                          (child-of (cdr (assoc 'child-of change)))
+                          (name (cdr (assoc 'name (org-serve-find-data-for-id new-id post-data)))))
+                     (save-excursion
+                       (message "current-buffer [%s]" (buffer-name))
+                       (org-serve-goto (or after-id child-of))
+                       (forward-char 1) ;; hacky hack
+                       (org-insert-heading-respect-content)
+                       (message "found data [%s]" (org-serve-find-data-for-id new-id post-data))
+                       (insert name)
+                       (org-set-property "ID" new-id))
+                     (message "current-buffer after [%s]" (buffer-name))
+                     (message "should insert as child of %s after entry %s" child-of after-id)))
+                  (t
+                   (message "found unsupport change: [%s]" (caar change)))))
+          changes))
 
 (defun org-serve-post (post-data)
   ;; find existing structure, and add where appropriate
   ;; no op if all ids exist
   (let* ((stored-data (org-serve-data))
-         (diffs (org-serve-post-diff-entries stored-data post-data nil)))
-    (message "diff-result: %s" (org-serve-post-diff-entries stored-data post-data nil))
-    "helo"))
+         (changes (org-serve-post-diff-entries stored-data post-data nil)))
+    (org-serve-apply-changes changes post-data)
+    (org-serve-data)))
 
 (defun org-serve-handle-message (websocket frame)
   (let* ((payload (condition-case condition
